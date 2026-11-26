@@ -282,6 +282,24 @@
     else templates.push(structuredClone(t));
     seeded.push(t.id);
   });
+  // Recreate OneSkin invoice OS-007 (issued 2026-10-26) once, and open it.
+  if (!seeded.includes("inv-os-007")) {
+    seeded.push("inv-os-007");
+    const exists = Object.values(invoices).some((i) => i.prefix === "OS" && num(i.number) === 7);
+    if (!exists) {
+      invoices["inv-os-007"] = {
+        id: "inv-os-007", prefix: "OS", number: 7, currency: "USD",
+        issueDate: "2026-10-26", terms: "custom", dueDate: "2026-11-27", reference: "",
+        to: { ...ONESKIN_TEMPLATE.to }, from: { ...from },
+        items: structuredClone(ONESKIN_TEMPLATE.items),
+        discount: 0, paid: 0,
+        payment: getRaw(KEYS.payment) || "",
+        termsText: ONESKIN_TEMPLATE.termsText,
+      };
+      save(KEYS.invoices, invoices);
+      setRaw(KEYS.current, "inv-os-007");
+    }
+  }
   save("blyze.seeded", seeded); save(KEYS.templates, templates);
 
   const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 864e5);
