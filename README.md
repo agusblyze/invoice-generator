@@ -6,7 +6,9 @@ A tiny, dependency-free invoice generator for Blyze Labs consulting. You fill in
 
 Open `index.html` in a browser. There is no build step and no server. You can also host it on GitHub Pages.
 
-For **Download PDF**, choose "Save as PDF" in the print dialog. Set margins to *None* and turn on *Background graphics* if your browser doesn't do that already.
+When opened as a file or a regular website, **Download PDF** uses the print dialog: choose "Save as PDF" in the print dialog. Set margins to *None* and turn on *Background graphics* if your browser doesn't do that already.
+
+Inside a claude.ai artifact, printing is blocked, so the app builds the PDF itself (html2canvas + jsPDF from cdnjs) and saves it through the artifact downloads API.
 
 ## Features
 

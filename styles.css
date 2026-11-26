@@ -156,6 +156,7 @@ table.inv-items { width: 100%; border-collapse: collapse; }
 .inv-block { margin-bottom: 6mm; }
 .inv-block .k { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .12em; color: var(--brand); font-weight: 600; margin-bottom: 4px; }
 .inv-block .v { white-space: pre-line; color: var(--ink-2); }
+.inv-block .v.cur b { color: var(--ink); font-weight: 600; }
 .inv-block.pay .v { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 8.5pt; color: var(--ink); background: #f8fafc; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
 
 .inv-foot {

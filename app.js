@@ -24,9 +24,11 @@
 
   // ---------- storage ----------
   const load = (k, fallback) => {
-    try { const v = JSON.parse(localStorage.getItem(k)); return v ?? fallback; } catch { return fallback; }
+    try { const v = JSON.parse(getRaw(k)); return v ?? fallback; } catch { return fallback; }
   };
-  const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+  const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  const getRaw = (k) => { try { return getRaw(k); } catch { return null; } };
+  const setRaw = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 
   let invoices = load(KEYS.invoices, {});
   let clients = load(KEYS.clients, [SAMPLE_CLIENT]);
@@ -85,7 +87,6 @@
       items: [{ name: "", desc: "", qty: 1, rate: 0, tax: 0 }],
       discount: 0,
       paid: 0,
-      notes: "Thank you for the partnership. Please reach out with any questions about this invoice.",
       payment: "",
       termsText: "Payment due by the date above. Invoiced in USD.",
     };
@@ -222,14 +223,14 @@
   $("#history").onchange = (e) => {
     if (!invoices[e.target.value]) return;
     inv = structuredClone(invoices[e.target.value]);
-    localStorage.setItem(KEYS.current, inv.id);
+    setRaw(KEYS.current, inv.id);
     fillForm(); render(); renderHistory();
   };
 
   const persist = () => {
     invoices[inv.id] = structuredClone(inv);
     save(KEYS.invoices, invoices);
-    localStorage.setItem(KEYS.current, inv.id);
+    setRaw(KEYS.current, inv.id);
     renderHistory();
   };
   let saveTimer;
@@ -243,29 +244,71 @@
   $("#btn-new").onclick = () => {
     const client = clients.find((c) => c.company === inv.to.company) || clients[0];
     inv = blankInvoice(client);
-    inv.currency = invoices[localStorage.getItem(KEYS.current)]?.currency || "USD";
+    inv.currency = invoices[getRaw(KEYS.current)]?.currency || "USD";
     fillForm(); render(); renderHistory();
     toast("New invoice");
   };
   $("#btn-delete").onclick = () => {
     if (!invoices[inv.id]) return toast("This invoice isn't saved yet");
-    if (!confirm(`Delete ${invNo(inv)}? This can't be undone.`)) return;
+    const b = $("#btn-delete");
+    if (!b.dataset.armed) {
+      b.dataset.armed = "1"; b.textContent = `Click again to delete ${invNo(inv)}`;
+      setTimeout(() => { delete b.dataset.armed; b.textContent = "Delete this invoice"; }, 4000);
+      return;
+    }
+    delete b.dataset.armed; b.textContent = "Delete this invoice";
     delete invoices[inv.id]; save(KEYS.invoices, invoices);
     inv = blankInvoice(); fillForm(); render(); renderHistory();
     toast("Deleted");
   };
 
-  $("#btn-pdf").onclick = () => {
+  // Inside a claude.ai artifact, printing and plain downloads are blocked, so
+  // we render the PDF ourselves and hand it to the platform's downloads API.
+  // Opened as a normal file/site, we use the browser's print-to-PDF (vector, crisp).
+  let downloads = null;
+  if (window.claude?.use) window.claude.use("downloads").then((d) => (downloads = d)).catch(() => {});
+
+  const loadScript = (src) => new Promise((res, rej) => {
+    if (document.querySelector(`script[src="${src}"]`)) return res();
+    const el = Object.assign(document.createElement("script"), { src, onload: res, onerror: rej });
+    document.head.appendChild(el);
+  });
+  const offerFile = async (filename, data) => {
+    try { await downloads.save({ filename, data }); toast(`Saved ${filename}`); }
+    catch (e) { toast(e?.code === "declined" ? "Download cancelled" : "Couldn't save the file here"); }
+  };
+
+  const buildPdf = async () => {
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+    const el = $("#invoice");
+    const canvas = await window.html2canvas(el, { scale: 3, backgroundColor: "#ffffff", useCORS: true });
+    const pdf = new window.jspdf.jsPDF({ unit: "mm", format: "a4", compress: true });
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 210, 297);
+    return pdf.output("blob");
+  };
+
+  $("#btn-pdf").onclick = async () => {
     if (!invoices[inv.id]) persist();
-    const prev = document.title;
-    document.title = `Invoice - ${invNo(inv)}`;
-    window.print();
-    setTimeout(() => (document.title = prev), 500);
+    const name = `Invoice - ${invNo(inv)}`;
+    if (!downloads) {
+      const prev = document.title;
+      document.title = name;
+      window.print();
+      setTimeout(() => (document.title = prev), 500);
+      return;
+    }
+    const b = $("#btn-pdf"); b.disabled = true; b.textContent = "Preparing…";
+    try { await offerFile(`${name}.pdf`, await buildPdf()); }
+    catch { toast("Couldn't build the PDF"); }
+    finally { b.disabled = false; b.textContent = "Download PDF"; }
   };
 
   // ---------- backup ----------
   $("#btn-export").onclick = () => {
-    const blob = new Blob([JSON.stringify({ invoices, clients, from }, null, 2)], { type: "application/json" });
+    const json = JSON.stringify({ invoices, clients, from }, null, 2);
+    if (downloads) return offerFile(`blyze-invoices-${today()}.json`, json);
+    const blob = new Blob([json], { type: "application/json" });
     const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `blyze-invoices-${today()}.json` });
     a.click(); URL.revokeObjectURL(a.href);
   };
@@ -351,7 +394,7 @@
 
         <div class="inv-bottom">
           <div>
-            ${inv.notes ? `<div class="inv-block"><div class="k">Notes</div><div class="v">${esc(inv.notes)}</div></div>` : ""}
+            <div class="inv-block"><div class="k">Currency</div><div class="v cur"><b>${esc(c)}</b> — ${esc(ccyName[c] || c)}</div></div>
             ${inv.payment ? `<div class="inv-block pay"><div class="k">Payment details</div><div class="v">${esc(inv.payment)}</div></div>` : ""}
             ${inv.termsText ? `<div class="inv-block"><div class="k">Terms</div><div class="v">${esc(inv.termsText)}</div></div>` : ""}
           </div>
@@ -361,7 +404,6 @@
             ${line("Tax", money(t.tax, c))}
             ${t.paid ? line("Total", money(t.total, c)) + line("Paid", "− " + money(t.paid, c)) : ""}
             <div class="grand"><span>${t.paid ? "Balance due" : "Total due"}</span><span>${money(t.due, c)}</span></div>
-            <div class="ccy">All amounts in ${esc(ccyName[c] || c)} (${esc(c)})</div>
           </div>
         </div>
 
@@ -373,11 +415,11 @@
   };
 
   // ---------- boot ----------
-  const currentId = localStorage.getItem(KEYS.current);
+  const currentId = getRaw(KEYS.current);
   if (invoices[currentId]) inv = structuredClone(invoices[currentId]);
   else if (!Object.keys(invoices).length) inv = sampleInvoice();
   else inv = blankInvoice();
-  if (!localStorage.getItem(KEYS.clients)) save(KEYS.clients, clients);
+  if (!getRaw(KEYS.clients)) save(KEYS.clients, clients);
 
   renderClients(); fillForm(); render(); renderHistory();
 })();
