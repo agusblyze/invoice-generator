@@ -320,11 +320,8 @@
     else { const first = templates.find((t) => t.to.company === current); if (first) sel.value = first.id; }
   };
 
-  $("#btn-tpl-save").onclick = () => {
-    if (!inv.to.company) return toast("Add a client company first");
-    const name = $("#tpl-name").value.trim() || inv.items[0]?.name || "Standard invoice";
-    const t = {
-      name,
+  // The parts of the open invoice that a template keeps.
+  const snapshot = () => ({
       prefix: inv.prefix,
       pad: padFor(inv.prefix),
       to: { ...inv.to },
@@ -336,7 +333,32 @@
       discount: inv.discount,
       payment: inv.payment,
       termsText: inv.termsText,
-    };
+  });
+
+  $("#btn-tpl-update").onclick = () => {
+    const b = $("#btn-tpl-update");
+    const t = templates.find((x) => x.id === $("#tpl-picker").value);
+    if (!t) return toast("Pick a template to update");
+    if (!inv.to.company) return toast("Add a client company first");
+    if (inv.to.company !== t.to.company && !b.dataset.armed) {
+      b.dataset.armed = "1";
+      b.textContent = `Click again to move “${t.name}” to ${inv.to.company}`;
+      setTimeout(() => { delete b.dataset.armed; b.textContent = "Update selected template"; }, 4000);
+      return;
+    }
+    delete b.dataset.armed; b.textContent = "Update selected template";
+    const name = $("#tpl-name").value.trim() || t.name;
+    Object.assign(t, snapshot(), { name });
+    save(KEYS.templates, templates);
+    $("#tpl-name").value = "";
+    renderTemplates(t.id);
+    toast(`Updated template “${name}”`);
+  };
+
+  $("#btn-tpl-save").onclick = () => {
+    if (!inv.to.company) return toast("Add a client company first");
+    const name = $("#tpl-name").value.trim() || inv.items[0]?.name || "Standard invoice";
+    const t = { name, ...snapshot() };
     const existing = templates.find((x) => x.to.company === t.to.company && x.name.toLowerCase() === name.toLowerCase());
     if (existing) Object.assign(existing, t); else templates.push({ id: uid(), ...t });
     save(KEYS.templates, templates);

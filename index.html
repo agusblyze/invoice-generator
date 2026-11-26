@@ -41,8 +41,11 @@
           <input id="tpl-name" placeholder="Template name, e.g. Monthly retainer" />
           <button type="button" id="btn-tpl-save" class="btn small ghost">Save current as template</button>
         </div>
-        <button type="button" id="btn-tpl-del" class="btn small danger mt-s">Delete selected template</button>
-        <p class="hint">A template keeps the client, line items, currency, terms and payment details. New invoices made from it get the next number and today's date.</p>
+        <div class="row mt-s">
+          <button type="button" id="btn-tpl-update" class="btn small">Update selected template</button>
+          <button type="button" id="btn-tpl-del" class="btn small danger">Delete selected template</button>
+        </div>
+        <p class="hint">A template keeps the client, line items, currency, terms and payment details. To change one: pick it, click <b>New from template</b>, edit the invoice, then <b>Update selected template</b>. Type a name first to rename it.</p>
       </section>
 
       <section class="card">
