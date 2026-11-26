@@ -22,6 +22,16 @@
     taxId: "",
   };
 
+  const ONESKIN_CLIENT = {
+    prefix: "OS",
+    pad: 3,
+    company: "OneSkin Inc.",
+    contact: "Deepti Janveja",
+    address: "953 Indiana St.\nSan Francisco, CA 94107\nUnited States of America",
+    email: "deepti@oneskin.co",
+    taxId: "",
+  };
+
   // ---------- storage ----------
   const load = (k, fallback) => {
     try { const v = JSON.parse(getRaw(k)); return v ?? fallback; } catch { return fallback; }
@@ -31,7 +41,8 @@
   const setRaw = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 
   let invoices = load(KEYS.invoices, {});
-  let clients = load(KEYS.clients, [SAMPLE_CLIENT]);
+  let clients = load(KEYS.clients, [SAMPLE_CLIENT, ONESKIN_CLIENT]);
+  if (!clients.some((c) => c.company === ONESKIN_CLIENT.company)) { clients.push(ONESKIN_CLIENT); save(KEYS.clients, clients); }
   let from = load(KEYS.from, DEFAULT_FROM);
   let inv;
 
@@ -54,7 +65,12 @@
   };
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const num = (v) => (isFinite(parseFloat(v)) ? parseFloat(v) : 0);
-  const invNo = (i) => `${i.prefix ? i.prefix + "-" : ""}${String(i.number || 1).padStart(4, "0")}`;
+  // Digits per prefix come from the client/template (OneSkin uses OS-007, Aplos APLOS-0011).
+  const padFor = (prefix) => {
+    const src = [...templates, ...clients].find((x) => (x.prefix || "") === (prefix || "") && x.pad);
+    return src ? src.pad : 4;
+  };
+  const invNo = (i) => `${i.prefix ? i.prefix + "-" : ""}${String(i.number || 1).padStart(padFor(i.prefix), "0")}`;
   const ccyName = { USD: "US dollars", EUR: "euros", GBP: "British pounds", CAD: "Canadian dollars", ARS: "Argentine pesos" };
 
   const toast = (msg) => {
@@ -65,9 +81,12 @@
     toast._t = setTimeout(() => t.classList.remove("show"), 1800);
   };
 
+  // Next number = highest saved invoice for this prefix + 1, but never below the
+  // template's starting number (so numbering continues from invoices made elsewhere).
   const nextNumber = (prefix) => {
     const nums = Object.values(invoices).filter((i) => (i.prefix || "") === (prefix || "")).map((i) => num(i.number));
-    return nums.length ? Math.max(...nums) + 1 : 1;
+    const floors = templates.filter((t) => (t.prefix || "") === (prefix || "")).map((t) => num(t.startNumber) || 1);
+    return Math.max(nums.length ? Math.max(...nums) + 1 : 1, ...floors);
   };
 
   const blankInvoice = (client = clients[0] || SAMPLE_CLIENT) => {
@@ -219,6 +238,7 @@
     id: "tpl-aplos-foundations",
     name: "Data Foundations",
     prefix: "APLOS",
+    startNumber: 12,
     to: { company: SAMPLE_CLIENT.company, contact: SAMPLE_CLIENT.contact, address: SAMPLE_CLIENT.address, email: SAMPLE_CLIENT.email, taxId: "" },
     currency: "USD",
     terms: "custom",
@@ -229,8 +249,40 @@
     payment: "",
     termsText: "Payment due by the date above. Invoiced in USD.",
   };
-  let templates = load(KEYS.templates, null);
-  if (!Array.isArray(templates)) { templates = [SAMPLE_TEMPLATE]; save(KEYS.templates, templates); }
+  const ONESKIN_TEMPLATE = {
+    id: "tpl-oneskin-monthly",
+    name: "Monthly – Analytics + dbt Cloud",
+    prefix: "OS",
+    pad: 3,
+    startNumber: 8,
+    to: { company: ONESKIN_CLIENT.company, contact: ONESKIN_CLIENT.contact, address: ONESKIN_CLIENT.address, email: ONESKIN_CLIENT.email, taxId: "" },
+    currency: "USD",
+    terms: "custom",
+    dueDays: 32,
+    reference: "",
+    items: [
+      { name: "Fractional Analytics Engineering", desc: "Ongoing data analytics, reporting, and consulting services.", qty: 1, rate: 6400, tax: 0 },
+      { name: "dbt Cloud", desc: "dbt Cloud monthly subscription", qty: 1, rate: 100, tax: 0 },
+    ],
+    discount: 0,
+    payment: "",
+    termsText: "Payment due by the date above. Invoiced in USD.",
+  };
+  const BUILT_IN_TEMPLATES = [SAMPLE_TEMPLATE, ONESKIN_TEMPLATE];
+
+  // Add built-in templates once each (a deleted one is not brought back), and
+  // give the existing Aplos template its starting number.
+  let templates = load(KEYS.templates, []);
+  if (!Array.isArray(templates)) templates = [];
+  const seeded = load("blyze.seeded", []);
+  BUILT_IN_TEMPLATES.forEach((t) => {
+    if (seeded.includes(t.id)) return;
+    const have = templates.find((x) => x.id === t.id);
+    if (have) { have.startNumber ??= t.startNumber; if (t.pad) have.pad ??= t.pad; }
+    else templates.push(structuredClone(t));
+    seeded.push(t.id);
+  });
+  save("blyze.seeded", seeded); save(KEYS.templates, templates);
 
   const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 864e5);
 
@@ -254,6 +306,7 @@
     const t = {
       name,
       prefix: inv.prefix,
+      pad: padFor(inv.prefix),
       to: { ...inv.to },
       currency: inv.currency,
       terms: inv.terms,
