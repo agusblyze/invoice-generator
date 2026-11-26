@@ -394,8 +394,8 @@
         <div class="inv-bottom">
           <div>
             <div class="inv-block"><div class="k">Currency</div><div class="v cur"><b>${esc(c)}</b> — ${esc(ccyName[c] || c)}</div></div>
-            ${inv.payment ? `<div class="inv-block pay"><div class="k">Payment details</div><div class="v">${esc(inv.payment)}</div></div>` : ""}
             ${inv.termsText ? `<div class="inv-block"><div class="k">Terms</div><div class="v">${esc(inv.termsText)}</div></div>` : ""}
+            ${inv.payment ? `<div class="inv-block pay"><div class="k">Payment details</div><div class="v">${esc(inv.payment)}</div></div>` : ""}
           </div>
           <div class="inv-totals">
             ${line("Subtotal", money(t.subtotal, c))}
