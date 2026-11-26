@@ -415,10 +415,17 @@
   };
 
   // ---------- boot ----------
+  // Recover payment details from the most recent saved invoice that has them
+  // (older versions didn't remember them between invoices).
+  const byRecent = (a, b) => (b.issueDate || "").localeCompare(a.issueDate || "") || num(b.number) - num(a.number);
+  const lastPay = Object.values(invoices).filter((i) => (i.payment || "").trim()).sort(byRecent)[0];
+  if (!getRaw(KEYS.payment) && lastPay) setRaw(KEYS.payment, lastPay.payment);
+
   const currentId = getRaw(KEYS.current);
   if (invoices[currentId]) inv = structuredClone(invoices[currentId]);
   else if (!Object.keys(invoices).length) inv = sampleInvoice();
   else inv = blankInvoice();
+  if (!(inv.payment || "").trim() && getRaw(KEYS.payment)) inv.payment = getRaw(KEYS.payment);
   if (!getRaw(KEYS.clients)) save(KEYS.clients, clients);
 
   renderClients(); fillForm(); render(); renderHistory();
