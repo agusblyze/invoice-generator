@@ -7,7 +7,7 @@
   const DEFAULT_FROM = {
     company: "Blyze Labs LLC",
     contact: "Agustin",
-    address: "251 Little Falls Drive\nWilmington, DE 19808\nUnited States of America",
+    address: "251 Little Falls Drive\nWilmington, DE 19808, USA",
     email: "agus@blyzelabs.co",
     website: "blyzelabs.co",
     taxId: "",
@@ -415,6 +415,13 @@
   };
 
   // ---------- boot ----------
+  // One-time update of the stored business address to the shorter "…19808, USA" format.
+  const OLD_ADDR = "251 Little Falls Drive\nWilmington, DE 19808\nUnited States of America";
+  const fixAddr = (f) => { if (f && f.address === OLD_ADDR) f.address = DEFAULT_FROM.address; };
+  fixAddr(from); save(KEYS.from, from);
+  Object.values(invoices).forEach((i) => fixAddr(i.from));
+  if (Object.keys(invoices).length) save(KEYS.invoices, invoices);
+
   // Recover payment details from the most recent saved invoice that has them
   // (older versions didn't remember them between invoices).
   const byRecent = (a, b) => (b.issueDate || "").localeCompare(a.issueDate || "") || num(b.number) - num(a.number);
