@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const KEYS = { invoices: "blyze.invoices", clients: "blyze.clients", from: "blyze.from", current: "blyze.current" };
+  const KEYS = { invoices: "blyze.invoices", clients: "blyze.clients", from: "blyze.from", current: "blyze.current", payment: "blyze.payment" };
 
   const DEFAULT_FROM = {
     company: "Blyze Labs LLC",
@@ -27,7 +27,7 @@
     try { const v = JSON.parse(getRaw(k)); return v ?? fallback; } catch { return fallback; }
   };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-  const getRaw = (k) => { try { return getRaw(k); } catch { return null; } };
+  const getRaw = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
   const setRaw = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 
   let invoices = load(KEYS.invoices, {});
@@ -87,7 +87,7 @@
       items: [{ name: "", desc: "", qty: 1, rate: 0, tax: 0 }],
       discount: 0,
       paid: 0,
-      payment: "",
+      payment: getRaw(KEYS.payment) || "",
       termsText: "Payment due by the date above. Invoiced in USD.",
     };
   };
@@ -167,6 +167,7 @@
         inv.number = nextNumber(inv.prefix);
         form.elements.number.value = inv.number;
       }
+      if (el.name === "payment") setRaw(KEYS.payment, inv.payment);
       if (el.name.startsWith("from.")) { from = { ...inv.from }; save(KEYS.from, from); }
       if (el.name === "currency") {
         inv.termsText = inv.termsText.replace(/Invoiced in [A-Z]{3}\b/, `Invoiced in ${inv.currency}`);
@@ -395,7 +396,7 @@
           <div>
             <div class="inv-block"><div class="k">Currency</div><div class="v cur"><b>${esc(c)}</b> — ${esc(ccyName[c] || c)}</div></div>
             ${inv.termsText ? `<div class="inv-block"><div class="k">Terms</div><div class="v">${esc(inv.termsText)}</div></div>` : ""}
-            ${inv.payment ? `<div class="inv-block pay"><div class="k">Payment details</div><div class="v">${esc(inv.payment)}</div></div>` : ""}
+            <div class="inv-block pay"><div class="k">Payment details</div><div class="v">${esc(inv.payment) || "&nbsp;"}</div></div>
           </div>
           <div class="inv-totals">
             ${line("Subtotal", money(t.subtotal, c))}
