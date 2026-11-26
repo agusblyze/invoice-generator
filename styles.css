@@ -70,6 +70,11 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #c7d3f3; border-c
 .g3 { grid-template-columns: 1fr 1fr 1fr; }
 .mt { margin-top: 14px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.row.nowrap { flex-wrap: nowrap; align-items: center; }
+.row.nowrap > select, .row.nowrap > input { flex: 1; }
+.row.nowrap > .btn { white-space: nowrap; }
+.mt-s { margin-top: 8px; }
+.tpl .hint { margin-bottom: 0; }
 .hint { font-size: 12px; color: var(--ink-3); margin: 4px 0 10px; }
 
 .item { border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-bottom: 10px; position: relative; background: #fcfdff; }

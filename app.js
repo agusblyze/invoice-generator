@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const KEYS = { invoices: "blyze.invoices", clients: "blyze.clients", from: "blyze.from", current: "blyze.current", payment: "blyze.payment" };
+  const KEYS = { invoices: "blyze.invoices", clients: "blyze.clients", from: "blyze.from", current: "blyze.current", payment: "blyze.payment", templates: "blyze.templates" };
 
   const DEFAULT_FROM = {
     company: "Blyze Labs LLC",
@@ -214,6 +214,102 @@
     toast(`Saved client “${c.company}”`);
   };
 
+  // ---------- client templates ----------
+  const SAMPLE_TEMPLATE = {
+    id: "tpl-aplos-foundations",
+    name: "Data Foundations",
+    prefix: "APLOS",
+    to: { company: SAMPLE_CLIENT.company, contact: SAMPLE_CLIENT.contact, address: SAMPLE_CLIENT.address, email: SAMPLE_CLIENT.email, taxId: "" },
+    currency: "USD",
+    terms: "custom",
+    dueDays: 45,
+    reference: "",
+    items: [{ name: "Aplos Data Foundations", desc: "Aplos Data Analytics Foundational Layer", qty: 1, rate: 8500, tax: 0 }],
+    discount: 0,
+    payment: "",
+    termsText: "Payment due by the date above. Invoiced in USD.",
+  };
+  let templates = load(KEYS.templates, null);
+  if (!Array.isArray(templates)) { templates = [SAMPLE_TEMPLATE]; save(KEYS.templates, templates); }
+
+  const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 864e5);
+
+  const renderTemplates = (selectId) => {
+    const sel = $("#tpl-picker");
+    const keep = selectId ?? sel.value;
+    const groups = {};
+    templates.forEach((t) => (groups[t.to.company || "No client"] ??= []).push(t));
+    const current = inv?.to?.company;
+    const order = Object.keys(groups).sort((a, b) => (b === current) - (a === current) || a.localeCompare(b));
+    sel.innerHTML = templates.length
+      ? order.map((g) => `<optgroup label="${esc(g)}">${groups[g].map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("")}</optgroup>`).join("")
+      : `<option value="">No templates yet</option>`;
+    if (templates.some((t) => t.id === keep)) sel.value = keep;
+    else { const first = templates.find((t) => t.to.company === current); if (first) sel.value = first.id; }
+  };
+
+  $("#btn-tpl-save").onclick = () => {
+    if (!inv.to.company) return toast("Add a client company first");
+    const name = $("#tpl-name").value.trim() || inv.items[0]?.name || "Standard invoice";
+    const t = {
+      name,
+      prefix: inv.prefix,
+      to: { ...inv.to },
+      currency: inv.currency,
+      terms: inv.terms,
+      dueDays: inv.issueDate && inv.dueDate ? daysBetween(inv.issueDate, inv.dueDate) : 30,
+      reference: inv.reference,
+      items: structuredClone(inv.items),
+      discount: inv.discount,
+      payment: inv.payment,
+      termsText: inv.termsText,
+    };
+    const existing = templates.find((x) => x.to.company === t.to.company && x.name.toLowerCase() === name.toLowerCase());
+    if (existing) Object.assign(existing, t); else templates.push({ id: uid(), ...t });
+    save(KEYS.templates, templates);
+    $("#tpl-name").value = "";
+    renderTemplates((existing || templates[templates.length - 1]).id);
+    toast(`${existing ? "Updated" : "Saved"} template “${name}” for ${t.to.company}`);
+  };
+
+  $("#btn-tpl-use").onclick = () => {
+    const t = templates.find((x) => x.id === $("#tpl-picker").value);
+    if (!t) return toast("Pick a template first");
+    const issueDate = today();
+    inv = {
+      ...blankInvoice(t.to),
+      prefix: t.prefix || "",
+      number: nextNumber(t.prefix || ""),
+      currency: t.currency || "USD",
+      issueDate,
+      terms: t.terms,
+      dueDate: addDays(issueDate, t.terms === "custom" ? t.dueDays ?? 30 : t.terms),
+      reference: t.reference || "",
+      to: { ...t.to },
+      items: structuredClone(t.items),
+      discount: t.discount || 0,
+      paid: 0,
+      termsText: t.termsText || "",
+    };
+    if ((t.payment || "").trim()) inv.payment = t.payment;
+    fillForm(); render(); renderHistory(); renderTemplates(t.id);
+    toast(`New ${invNo(inv)} from “${t.name}”`);
+  };
+
+  $("#btn-tpl-del").onclick = () => {
+    const b = $("#btn-tpl-del");
+    const t = templates.find((x) => x.id === $("#tpl-picker").value);
+    if (!t) return;
+    if (!b.dataset.armed) {
+      b.dataset.armed = "1"; b.textContent = `Click again to delete “${t.name}”`;
+      setTimeout(() => { delete b.dataset.armed; b.textContent = "Delete selected template"; }, 4000);
+      return;
+    }
+    delete b.dataset.armed; b.textContent = "Delete selected template";
+    templates = templates.filter((x) => x !== t);
+    save(KEYS.templates, templates); renderTemplates(); toast("Template deleted");
+  };
+
   // ---------- invoices history ----------
   const renderHistory = () => {
     const list = Object.values(invoices).sort((a, b) => (b.issueDate || "").localeCompare(a.issueDate || "") || b.number - a.number);
@@ -307,7 +403,7 @@
 
   // ---------- backup ----------
   $("#btn-export").onclick = () => {
-    const json = JSON.stringify({ invoices, clients, from }, null, 2);
+    const json = JSON.stringify({ invoices, clients, from, templates }, null, 2);
     if (downloads) return offerFile(`blyze-invoices-${today()}.json`, json);
     const blob = new Blob([json], { type: "application/json" });
     const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `blyze-invoices-${today()}.json` });
@@ -321,6 +417,7 @@
       invoices = { ...invoices, ...(data.invoices || {}) };
       clients = data.clients || clients;
       from = data.from || from;
+      if (Array.isArray(data.templates)) { templates = data.templates; save(KEYS.templates, templates); renderTemplates(); }
       save(KEYS.invoices, invoices); save(KEYS.clients, clients); save(KEYS.from, from);
       renderClients(); renderHistory(); toast("Backup imported");
     } catch { toast("Couldn't read that file"); }
@@ -435,5 +532,5 @@
   if (!(inv.payment || "").trim() && getRaw(KEYS.payment)) inv.payment = getRaw(KEYS.payment);
   if (!getRaw(KEYS.clients)) save(KEYS.clients, clients);
 
-  renderClients(); fillForm(); render(); renderHistory();
+  renderClients(); fillForm(); render(); renderHistory(); renderTemplates();
 })();

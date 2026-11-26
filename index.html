@@ -24,6 +24,20 @@
   <main class="layout">
     <!-- ============ EDITOR ============ -->
     <form id="editor" class="editor no-print" autocomplete="off" onsubmit="return false">
+      <section class="card tpl">
+        <h2>Client templates</h2>
+        <div class="row nowrap">
+          <select id="tpl-picker" title="Templates"></select>
+          <button type="button" id="btn-tpl-use" class="btn small primary">New from template</button>
+        </div>
+        <div class="row nowrap mt-s">
+          <input id="tpl-name" placeholder="Template name, e.g. Monthly retainer" />
+          <button type="button" id="btn-tpl-save" class="btn small ghost">Save current as template</button>
+        </div>
+        <button type="button" id="btn-tpl-del" class="btn small danger mt-s">Delete selected template</button>
+        <p class="hint">A template keeps the client, line items, currency, terms and payment details. New invoices made from it get the next number and today's date.</p>
+      </section>
+
       <section class="card">
         <h2>Invoice</h2>
         <div class="grid g3">

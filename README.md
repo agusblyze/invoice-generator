@@ -15,6 +15,7 @@ Inside a claude.ai artifact, printing is blocked, so the app builds the PDF itse
 - Invoice numbers per client prefix (`APLOS-0011` → `APLOS-0012`), counted automatically
 - Payment terms (on receipt / Net 15/30/45/60) that fill in the due date
 - Multiple line items, with tax % per line, a discount and partial payments (shows a balance due)
+- Client templates: several per client (line items, currency, terms, payment details); "New from template" gives the next number and today's date. Comes with an Aplos Software, LLC "Data Foundations" template
 - Saved clients and saved invoices, stored in this browser's `localStorage`
 - Your business details are remembered for every new invoice
 - Export and import a JSON backup to move your data between devices
