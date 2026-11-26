@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Blyze Labs · Invoice Generator</title>
+  <link rel="icon" href="assets/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar no-print">
+    <div class="brand"><img src="assets/logo.png" alt="" /> <span>Invoice Generator</span></div>
+    <label class="top-client">Client
+      <select id="top-client" title="Client"></select>
+    </label>
+    <nav class="tabs" role="tablist">
+      <button type="button" class="tab active" data-view="editor" role="tab">Invoice</button>
+      <button type="button" class="tab" data-view="history" role="tab">History</button>
+    </nav>
+    <div class="actions">
+      <select id="history" title="Saved invoices"></select>
+      <button id="btn-new" class="btn">New invoice</button>
+      <button id="btn-save" class="btn">Save</button>
+      <button id="btn-pdf" class="btn primary">Download PDF</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ============ EDITOR ============ -->
+    <form id="editor" class="editor no-print" autocomplete="off" onsubmit="return false">
+      <section class="card tpl">
+        <h2>Client templates</h2>
+        <div class="row nowrap">
+          <select id="tpl-picker" title="Templates"></select>
+          <button type="button" id="btn-tpl-use" class="btn small primary">New from template</button>
+        </div>
+        <div class="row nowrap mt-s">
+          <input id="tpl-name" placeholder="Template name, e.g. Monthly retainer" />
+          <button type="button" id="btn-tpl-save" class="btn small ghost">Save current as template</button>
+        </div>
+        <div class="row mt-s">
+          <button type="button" id="btn-tpl-update" class="btn small">Update selected template</button>
+          <button type="button" id="btn-tpl-del" class="btn small danger">Delete selected template</button>
+        </div>
+        <p class="hint">A template keeps the client, line items, currency, terms and payment details. To change one: pick it, click <b>New from template</b>, edit the invoice, then <b>Update selected template</b>. Type a name first to rename it.</p>
+      </section>
+
+      <section class="card">
+        <h2>Invoice</h2>
+        <div class="grid g3">
+          <label>Prefix<input name="prefix" placeholder="APLOS" /></label>
+          <label>Number<input name="number" type="number" min="1" /></label>
+          <label>Currency
+            <select name="currency">
+              <option>USD</option><option>EUR</option><option>GBP</option><option>CAD</option><option>ARS</option>
+            </select>
+          </label>
+        </div>
+        <div class="grid g3">
+          <label>Issued on<input name="issueDate" type="date" /></label>
+          <label>Payment terms
+            <select name="terms">
+              <option value="0">Due on receipt</option>
+              <option value="15">Net 15</option>
+              <option value="30">Net 30</option>
+              <option value="45">Net 45</option>
+              <option value="60">Net 60</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+          <label>Due by<input name="dueDate" type="date" /></label>
+        </div>
+        <label>Project / reference <input name="reference" placeholder="e.g. Data Foundations – Phase 1" /></label>
+      </section>
+
+      <section class="card">
+        <h2>Bill to
+          <select id="client-picker" class="inline-select" title="Saved clients"></select>
+        </h2>
+        <div class="grid g2">
+          <label>Company<input name="to.company" /></label>
+          <label>Contact<input name="to.contact" /></label>
+        </div>
+        <div class="addr">
+          <label>Street address<input name="to.street" placeholder="251 Little Falls Drive" /></label>
+          <label>Suite / unit (optional)<input name="to.street2" placeholder="Suite 100" /></label>
+          <div class="grid g-city">
+            <label>City<input name="to.city" /></label>
+            <label>State<input name="to.state" placeholder="DE" /></label>
+            <label>ZIP<input name="to.zip" /></label>
+          </div>
+          <label>Country<input name="to.country" list="countries" placeholder="USA" /></label>
+        </div>
+        <div class="grid g2">
+          <label>Email<input name="to.email" type="email" /></label>
+          <label>Tax ID (optional)<input name="to.taxId" /></label>
+        </div>
+        <button type="button" id="btn-save-client" class="btn small ghost">Save client for later</button>
+      </section>
+
+      <section class="card">
+        <h2>Line items</h2>
+        <div id="items"></div>
+        <button type="button" id="btn-add-item" class="btn small ghost">+ Add line item</button>
+        <div class="grid g2 mt">
+          <label>Discount (%)<input name="discount" type="number" min="0" max="100" step="0.01" /></label>
+          <label>Amount already paid<input name="paid" type="number" min="0" step="0.01" /></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Payment</h2>
+        <label>Terms<textarea name="termsText" rows="2"></textarea></label>
+        <label>Payment details<textarea name="payment" rows="4" placeholder="Bank, account, routing, SWIFT, or payment link…"></textarea></label>
+      </section>
+
+      <details class="card">
+        <summary><h2>From (your business)</h2></summary>
+        <div class="grid g2">
+          <label>Company<input name="from.company" /></label>
+          <label>Name<input name="from.contact" /></label>
+        </div>
+        <div class="addr">
+          <label>Street address<input name="from.street" placeholder="251 Little Falls Drive" /></label>
+          <label>Suite / unit (optional)<input name="from.street2" placeholder="Suite 100" /></label>
+          <div class="grid g-city">
+            <label>City<input name="from.city" /></label>
+            <label>State<input name="from.state" placeholder="DE" /></label>
+            <label>ZIP<input name="from.zip" /></label>
+          </div>
+          <label>Country<input name="from.country" list="countries" placeholder="USA" /></label>
+        </div>
+        <div class="grid g2">
+          <label>Email<input name="from.email" /></label>
+          <label>Website<input name="from.website" /></label>
+        </div>
+        <label>Tax ID / EIN (optional)<input name="from.taxId" /></label>
+        <p class="hint">These details are remembered and reused on every new invoice.</p>
+      </details>
+
+      <details class="card">
+        <summary><h2>Data</h2></summary>
+        <p class="hint">Everything is stored in this browser only. Export a backup to move it to another device.</p>
+        <div class="row">
+          <button type="button" id="btn-export" class="btn small ghost">Export backup</button>
+          <label class="btn small ghost file">Import backup<input type="file" id="import-file" accept="application/json" hidden /></label>
+          <button type="button" id="btn-delete" class="btn small danger">Delete this invoice</button>
+        </div>
+      </details>
+    </form>
+
+    <!-- ============ PREVIEW ============ -->
+    <div class="preview-wrap">
+      <article id="invoice" class="invoice"></article>
+    </div>
+  </main>
+
+  <!-- ============ HISTORY ============ -->
+  <section id="history-view" class="history-view no-print" hidden>
+    <div class="hv-head">
+      <h1 id="hv-title">All invoices</h1>
+      <p id="hv-sub" class="hint"></p>
+    </div>
+    <div id="hv-tiles" class="tiles"></div>
+    <div id="hv-clients" class="card hv-card"></div>
+    <div class="card hv-card">
+      <h2>Invoices</h2>
+      <div class="scroll"><table class="hv-table" id="hv-invoices"></table></div>
+    </div>
+  </section>
+
+  <datalist id="countries">
+    <option value="USA"></option><option value="United States of America"></option><option value="Canada"></option>
+    <option value="Argentina"></option><option value="United Kingdom"></option><option value="Spain"></option><option value="Mexico"></option>
+  </datalist>
+  <div id="toast" class="toast no-print"></div>
+  <script src="config.local.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
