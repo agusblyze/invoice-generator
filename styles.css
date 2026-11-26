@@ -184,10 +184,10 @@ table.inv-items { width: 100%; border-collapse: collapse; }
 .inv-items .amt { font-weight: 600; }
 
 .inv-bottom { display: grid; grid-template-columns: 1fr 76mm; gap: 12mm; margin-top: 8mm; align-items: start; }
-.inv-totals .line { display: flex; justify-content: space-between; padding: 5px 0; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.inv-totals .line { display: flex; justify-content: space-between; padding: 5px 10px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .inv-totals .line span:last-child { color: var(--ink); }
 .inv-totals .grand {
-  margin-top: 8px; padding: 12px 14px; border-radius: 8px; background: var(--ink); color: #fff;
+  margin-top: 8px; padding: 12px 10px; border-radius: 8px; background: var(--ink); color: #fff;
   display: flex; justify-content: space-between; align-items: baseline;
 }
 .inv-totals .grand span:first-child { font-size: 8pt; text-transform: uppercase; letter-spacing: .12em; opacity: .8; font-weight: 600; }
