@@ -7,7 +7,7 @@
   const DEFAULT_FROM = {
     company: "Blyze Labs LLC",
     contact: "Agustin",
-    address: "251 Little Falls Drive\nWilmington, DE 19808, USA",
+    street: "251 Little Falls Drive", street2: "", city: "Wilmington", state: "DE", zip: "19808", country: "USA",
     email: "agus@blyzelabs.co",
     website: "blyzelabs.co",
     taxId: "",
@@ -17,7 +17,7 @@
     prefix: "APLOS",
     company: "Aplos Software, LLC",
     contact: "Gabriela Henriques",
-    address: "8839 N Cedar Ave B-4 #5007\nFresno, CA 93720\nUnited States of America",
+    street: "8839 N Cedar Ave B-4 #5007", street2: "", city: "Fresno", state: "CA", zip: "93720", country: "United States of America",
     email: "finance@aplos.com",
     taxId: "",
   };
@@ -27,7 +27,7 @@
     pad: 3,
     company: "OneSkin Inc.",
     contact: "Deepti Janveja",
-    address: "953 Indiana St.\nSan Francisco, CA 94107\nUnited States of America",
+    street: "953 Indiana St.", street2: "", city: "San Francisco", state: "CA", zip: "94107", country: "United States of America",
     email: "deepti@oneskin.co",
     taxId: "",
   };
@@ -40,10 +40,52 @@
   const getRaw = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
   const setRaw = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 
+  // ---------- addresses ----------
+  // Parties store a structured address: street, street2, city, state, zip, country.
+  const PARTY_FIELDS = ["company", "contact", "street", "street2", "city", "state", "zip", "country", "email", "taxId"];
+  const pickParty = (p = {}) => Object.fromEntries(PARTY_FIELDS.map((k) => [k, p[k] || ""]));
+
+  // Older versions kept the address as free text; split it into fields.
+  const OLD_FROM_ADDR = "251 Little Falls Drive\nWilmington, DE 19808\nUnited States of America";
+  const parseAddress = (text) => {
+    if (text === OLD_FROM_ADDR) text = "251 Little Falls Drive\nWilmington, DE 19808, USA";
+    const lines = String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+    const re = /^(.+?),\s*([A-Za-z]{2})\.?\s+([A-Za-z0-9-]{3,10})(?:,\s*(.+))?$/;
+    const i = lines.findIndex((l) => re.test(l));
+    if (i < 0) return { street: lines[0] || "", street2: lines.slice(1).join(", "), city: "", state: "", zip: "", country: "" };
+    const m = lines[i].match(re);
+    return {
+      street: i > 0 ? lines[0] : "",
+      street2: lines.slice(1, i).join(", "),
+      city: m[1], state: m[2].toUpperCase(), zip: m[3],
+      country: m[4] || lines.slice(i + 1).join(", "),
+    };
+  };
+  const normalizeParty = (p) => {
+    if (!p || typeof p.address !== "string") return p;
+    if (!p.street && !p.city) Object.assign(p, parseAddress(p.address));
+    delete p.address;
+    return p;
+  };
+  const addressLines = (p) => {
+    const cityLine = [p.city, [p.state, p.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+    // Country sits next to the ZIP ("Wilmington, DE 19808, USA") when it fits,
+    // otherwise on its own line so long names don't wrap mid-word.
+    const together = cityLine && p.country && cityLine.length + p.country.length <= 36;
+    const tail = together ? [`${cityLine}, ${p.country}`] : [cityLine, p.country];
+    return [p.street, p.street2, ...tail].filter(Boolean);
+  };
+
   let invoices = load(KEYS.invoices, {});
   let clients = load(KEYS.clients, [SAMPLE_CLIENT, ONESKIN_CLIENT]);
-  if (!clients.some((c) => c.company === ONESKIN_CLIENT.company)) { clients.push(ONESKIN_CLIENT); save(KEYS.clients, clients); }
+  if (!clients.some((c) => c.company === ONESKIN_CLIENT.company)) clients.push(ONESKIN_CLIENT);
   let from = load(KEYS.from, DEFAULT_FROM);
+  // one-time conversion of free-text addresses
+  normalizeParty(from);
+  clients.forEach(normalizeParty);
+  Object.values(invoices).forEach((i) => { normalizeParty(i.to); normalizeParty(i.from); });
+  save(KEYS.from, from); save(KEYS.clients, clients);
+  if (Object.keys(invoices).length) save(KEYS.invoices, invoices);
   let inv;
 
   // ---------- helpers ----------
@@ -103,7 +145,7 @@
       terms: "30",
       dueDate: addDays(issueDate, 30),
       reference: "",
-      to: { company: client.company, contact: client.contact, address: client.address, email: client.email, taxId: client.taxId || "" },
+      to: pickParty(client),
       from: { ...from },
       items: [{ name: "", desc: "", qty: 1, rate: 0, tax: 0 }],
       discount: 0,
@@ -222,7 +264,7 @@
     const c = clients[e.target.value];
     e.target.value = "";
     if (!c) return;
-    inv.to = { company: c.company, contact: c.contact, address: c.address, email: c.email, taxId: c.taxId || "" };
+    inv.to = pickParty(c);
     if (!invoices[inv.id] && c.prefix) { inv.prefix = c.prefix; inv.number = nextNumber(c.prefix); }
     fillForm(); render();
   };
@@ -241,7 +283,7 @@
     name: "Data Foundations",
     prefix: "APLOS",
     startNumber: 12,
-    to: { company: SAMPLE_CLIENT.company, contact: SAMPLE_CLIENT.contact, address: SAMPLE_CLIENT.address, email: SAMPLE_CLIENT.email, taxId: "" },
+    to: pickParty(SAMPLE_CLIENT),
     currency: "USD",
     terms: "custom",
     dueDays: 45,
@@ -257,7 +299,7 @@
     prefix: "OS",
     pad: 3,
     startNumber: 8,
-    to: { company: ONESKIN_CLIENT.company, contact: ONESKIN_CLIENT.contact, address: ONESKIN_CLIENT.address, email: ONESKIN_CLIENT.email, taxId: "" },
+    to: pickParty(ONESKIN_CLIENT),
     currency: "USD",
     terms: "custom",
     dueDays: 32,
@@ -276,6 +318,7 @@
   // give the existing Aplos template its starting number.
   let templates = load(KEYS.templates, []);
   if (!Array.isArray(templates)) templates = [];
+  templates.forEach((t) => normalizeParty(t.to));
   const seeded = load("blyze.seeded", []);
   BUILT_IN_TEMPLATES.forEach((t) => {
     if (seeded.includes(t.id)) return;
@@ -668,7 +711,7 @@
     const f = inv.from, to = inv.to;
     const hasTax = inv.items.some((it) => num(it.tax) > 0);
     const line = (k, v) => `<div class="line"><span>${k}</span><span>${v}</span></div>`;
-    const contactLines = (p) => [p.contact, p.address].filter(Boolean).map(esc).join("\n");
+    const contactLines = (p) => [p.contact, ...addressLines(p)].filter(Boolean).map(esc).join("\n");
 
     $("#invoice").innerHTML = `
       <div class="inv-accent"></div>
@@ -749,13 +792,6 @@
   };
 
   // ---------- boot ----------
-  // One-time update of the stored business address to the shorter "…19808, USA" format.
-  const OLD_ADDR = "251 Little Falls Drive\nWilmington, DE 19808\nUnited States of America";
-  const fixAddr = (f) => { if (f && f.address === OLD_ADDR) f.address = DEFAULT_FROM.address; };
-  fixAddr(from); save(KEYS.from, from);
-  Object.values(invoices).forEach((i) => fixAddr(i.from));
-  if (Object.keys(invoices).length) save(KEYS.invoices, invoices);
-
   // Recover payment details from the most recent saved invoice that has them
   // (older versions didn't remember them between invoices).
   const lastPay = Object.values(invoices).filter((i) => (i.payment || "").trim()).sort(byRecent)[0];

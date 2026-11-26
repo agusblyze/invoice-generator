@@ -84,7 +84,16 @@
           <label>Company<input name="to.company" /></label>
           <label>Contact<input name="to.contact" /></label>
         </div>
-        <label>Address<textarea name="to.address" rows="3"></textarea></label>
+        <div class="addr">
+          <label>Street address<input name="to.street" placeholder="251 Little Falls Drive" /></label>
+          <label>Suite / unit (optional)<input name="to.street2" placeholder="Suite 100" /></label>
+          <div class="grid g-city">
+            <label>City<input name="to.city" /></label>
+            <label>State<input name="to.state" placeholder="DE" /></label>
+            <label>ZIP<input name="to.zip" /></label>
+          </div>
+          <label>Country<input name="to.country" list="countries" placeholder="USA" /></label>
+        </div>
         <div class="grid g2">
           <label>Email<input name="to.email" type="email" /></label>
           <label>Tax ID (optional)<input name="to.taxId" /></label>
@@ -114,7 +123,16 @@
           <label>Company<input name="from.company" /></label>
           <label>Name<input name="from.contact" /></label>
         </div>
-        <label>Address<textarea name="from.address" rows="3"></textarea></label>
+        <div class="addr">
+          <label>Street address<input name="from.street" placeholder="251 Little Falls Drive" /></label>
+          <label>Suite / unit (optional)<input name="from.street2" placeholder="Suite 100" /></label>
+          <div class="grid g-city">
+            <label>City<input name="from.city" /></label>
+            <label>State<input name="from.state" placeholder="DE" /></label>
+            <label>ZIP<input name="from.zip" /></label>
+          </div>
+          <label>Country<input name="from.country" list="countries" placeholder="USA" /></label>
+        </div>
         <div class="grid g2">
           <label>Email<input name="from.email" /></label>
           <label>Website<input name="from.website" /></label>
@@ -154,6 +172,10 @@
     </div>
   </section>
 
+  <datalist id="countries">
+    <option value="USA"></option><option value="United States of America"></option><option value="Canada"></option>
+    <option value="Argentina"></option><option value="United Kingdom"></option><option value="Spain"></option><option value="Mexico"></option>
+  </datalist>
   <div id="toast" class="toast no-print"></div>
   <script src="app.js"></script>
 </body>
