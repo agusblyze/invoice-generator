@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Blyze Labs · Invoice Generator</title>
+  <link rel="icon" href="assets/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar no-print">
+    <div class="brand"><img src="assets/logo.png" alt="" /> <span>Invoice Generator</span></div>
+    <div class="actions">
+      <select id="history" title="Saved invoices"></select>
+      <button id="btn-new" class="btn">New invoice</button>
+      <button id="btn-save" class="btn">Save</button>
+      <button id="btn-pdf" class="btn primary">Download PDF</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ============ EDITOR ============ -->
+    <form id="editor" class="editor no-print" autocomplete="off" onsubmit="return false">
+      <section class="card">
+        <h2>Invoice</h2>
+        <div class="grid g3">
+          <label>Prefix<input name="prefix" placeholder="APLOS" /></label>
+          <label>Number<input name="number" type="number" min="1" /></label>
+          <label>Currency
+            <select name="currency">
+              <option>USD</option><option>EUR</option><option>GBP</option><option>CAD</option><option>ARS</option>
+            </select>
+          </label>
+        </div>
+        <div class="grid g3">
+          <label>Issued on<input name="issueDate" type="date" /></label>
+          <label>Payment terms
+            <select name="terms">
+              <option value="0">Due on receipt</option>
+              <option value="15">Net 15</option>
+              <option value="30">Net 30</option>
+              <option value="45">Net 45</option>
+              <option value="60">Net 60</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+          <label>Due by<input name="dueDate" type="date" /></label>
+        </div>
+        <label>Project / reference <input name="reference" placeholder="e.g. Data Foundations – Phase 1" /></label>
+      </section>
+
+      <section class="card">
+        <h2>Bill to
+          <select id="client-picker" class="inline-select" title="Saved clients"></select>
+        </h2>
+        <div class="grid g2">
+          <label>Company<input name="to.company" /></label>
+          <label>Contact<input name="to.contact" /></label>
+        </div>
+        <label>Address<textarea name="to.address" rows="3"></textarea></label>
+        <div class="grid g2">
+          <label>Email<input name="to.email" type="email" /></label>
+          <label>Tax ID (optional)<input name="to.taxId" /></label>
+        </div>
+        <button type="button" id="btn-save-client" class="btn small ghost">Save client for later</button>
+      </section>
+
+      <section class="card">
+        <h2>Line items</h2>
+        <div id="items"></div>
+        <button type="button" id="btn-add-item" class="btn small ghost">+ Add line item</button>
+        <div class="grid g2 mt">
+          <label>Discount (%)<input name="discount" type="number" min="0" max="100" step="0.01" /></label>
+          <label>Amount already paid<input name="paid" type="number" min="0" step="0.01" /></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Notes &amp; payment</h2>
+        <label>Notes to client<textarea name="notes" rows="2"></textarea></label>
+        <label>Payment details<textarea name="payment" rows="4" placeholder="Bank, account, routing, SWIFT, or payment link…"></textarea></label>
+        <label>Terms<textarea name="termsText" rows="2"></textarea></label>
+      </section>
+
+      <details class="card">
+        <summary><h2>From (your business)</h2></summary>
+        <div class="grid g2">
+          <label>Company<input name="from.company" /></label>
+          <label>Name<input name="from.contact" /></label>
+        </div>
+        <label>Address<textarea name="from.address" rows="3"></textarea></label>
+        <div class="grid g2">
+          <label>Email<input name="from.email" /></label>
+          <label>Website<input name="from.website" /></label>
+        </div>
+        <label>Tax ID / EIN (optional)<input name="from.taxId" /></label>
+        <p class="hint">These details are remembered and reused on every new invoice.</p>
+      </details>
+
+      <details class="card">
+        <summary><h2>Data</h2></summary>
+        <p class="hint">Everything is stored in this browser only. Export a backup to move it to another device.</p>
+        <div class="row">
+          <button type="button" id="btn-export" class="btn small ghost">Export backup</button>
+          <label class="btn small ghost file">Import backup<input type="file" id="import-file" accept="application/json" hidden /></label>
+          <button type="button" id="btn-delete" class="btn small danger">Delete this invoice</button>
+        </div>
+      </details>
+    </form>
+
+    <!-- ============ PREVIEW ============ -->
+    <div class="preview-wrap">
+      <article id="invoice" class="invoice"></article>
+    </div>
+  </main>
+
+  <div id="toast" class="toast no-print"></div>
+  <script src="app.js"></script>
+</body>
+</html>
