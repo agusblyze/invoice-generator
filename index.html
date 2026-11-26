@@ -13,6 +13,13 @@
 <body>
   <header class="topbar no-print">
     <div class="brand"><img src="assets/logo.png" alt="" /> <span>Invoice Generator</span></div>
+    <label class="top-client">Client
+      <select id="top-client" title="Client"></select>
+    </label>
+    <nav class="tabs" role="tablist">
+      <button type="button" class="tab active" data-view="editor" role="tab">Invoice</button>
+      <button type="button" class="tab" data-view="history" role="tab">History</button>
+    </nav>
     <div class="actions">
       <select id="history" title="Saved invoices"></select>
       <button id="btn-new" class="btn">New invoice</button>
@@ -129,6 +136,20 @@
       <article id="invoice" class="invoice"></article>
     </div>
   </main>
+
+  <!-- ============ HISTORY ============ -->
+  <section id="history-view" class="history-view no-print" hidden>
+    <div class="hv-head">
+      <h1 id="hv-title">All invoices</h1>
+      <p id="hv-sub" class="hint"></p>
+    </div>
+    <div id="hv-tiles" class="tiles"></div>
+    <div id="hv-clients" class="card hv-card"></div>
+    <div class="card hv-card">
+      <h2>Invoices</h2>
+      <div class="scroll"><table class="hv-table" id="hv-invoices"></table></div>
+    </div>
+  </section>
 
   <div id="toast" class="toast no-print"></div>
   <script src="app.js"></script>

@@ -16,6 +16,8 @@ Inside a claude.ai artifact, printing is blocked, so the app builds the PDF itse
 - Payment terms (on receipt / Net 15/30/45/60) that fill in the due date
 - Multiple line items, with tax % per line, a discount and partial payments (shows a balance due)
 - Client templates: several per client (line items, currency, terms, payment details); "New from template" gives the next number and today's date. Comes with an Aplos Software, LLC "Data Foundations" template
+- Client selector in the top bar: filters templates and saved invoices, and "New invoice" uses that client
+- History view: total invoiced, invoiced this year, outstanding and overdue, a per-client summary, and every invoice with status (Open, Overdue, Paid) and Mark paid
 - Saved clients and saved invoices, stored in this browser's `localStorage`
 - Your business details are remembered for every new invoice
 - Export and import a JSON backup to move your data between devices

@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const KEYS = { invoices: "blyze.invoices", clients: "blyze.clients", from: "blyze.from", current: "blyze.current", payment: "blyze.payment", templates: "blyze.templates" };
+  const KEYS = { invoices: "blyze.invoices", clients: "blyze.clients", from: "blyze.from", current: "blyze.current", payment: "blyze.payment", templates: "blyze.templates", client: "blyze.client" };
 
   const DEFAULT_FROM = {
     company: "Blyze Labs LLC",
@@ -83,6 +83,8 @@
 
   // Next number = highest saved invoice for this prefix + 1, but never below the
   // template's starting number (so numbering continues from invoices made elsewhere).
+  const byRecent = (a, b) => (b.issueDate || "").localeCompare(a.issueDate || "") || num(b.number) - num(a.number);
+
   const nextNumber = (prefix) => {
     const nums = Object.values(invoices).filter((i) => (i.prefix || "") === (prefix || "")).map((i) => num(i.number));
     const floors = templates.filter((t) => (t.prefix || "") === (prefix || "")).map((t) => num(t.startNumber) || 1);
@@ -229,7 +231,7 @@
     const c = { ...inv.to, prefix: inv.prefix };
     const idx = clients.findIndex((x) => x.company.toLowerCase() === c.company.toLowerCase());
     if (idx >= 0) clients[idx] = c; else clients.push(c);
-    save(KEYS.clients, clients); renderClients();
+    save(KEYS.clients, clients); renderClients(); renderTopClient();
     toast(`Saved client “${c.company}”`);
   };
 
@@ -308,13 +310,13 @@
     const sel = $("#tpl-picker");
     const keep = selectId ?? sel.value;
     const groups = {};
-    templates.forEach((t) => (groups[t.to.company || "No client"] ??= []).push(t));
+    templates.filter((t) => !topClient || t.to.company === topClient).forEach((t) => (groups[t.to.company || "No client"] ??= []).push(t));
     const current = inv?.to?.company;
     const order = Object.keys(groups).sort((a, b) => (b === current) - (a === current) || a.localeCompare(b));
-    sel.innerHTML = templates.length
+    sel.innerHTML = Object.keys(groups).length
       ? order.map((g) => `<optgroup label="${esc(g)}">${groups[g].map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("")}</optgroup>`).join("")
       : `<option value="">No templates yet</option>`;
-    if (templates.some((t) => t.id === keep)) sel.value = keep;
+    if (templates.some((t) => t.id === keep && (!topClient || t.to.company === topClient))) sel.value = keep;
     else { const first = templates.find((t) => t.to.company === current); if (first) sel.value = first.id; }
   };
 
@@ -381,9 +383,150 @@
     save(KEYS.templates, templates); renderTemplates(); toast("Template deleted");
   };
 
+  // ---------- top client selector ----------
+  let topClient = getRaw(KEYS.client) || "";
+  const forClient = (i) => !topClient || i.to?.company === topClient;
+  const allCompanies = () => {
+    const names = new Set(clients.map((c) => c.company).filter(Boolean));
+    Object.values(invoices).forEach((i) => i.to?.company && names.add(i.to.company));
+    return [...names].sort((a, b) => a.localeCompare(b));
+  };
+  const renderTopClient = () => {
+    const names = allCompanies();
+    if (topClient && !names.includes(topClient)) topClient = "";
+    $("#top-client").innerHTML = `<option value="">All clients</option>` + names.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+    $("#top-client").value = topClient;
+  };
+  $("#top-client").onchange = (e) => {
+    topClient = e.target.value;
+    setRaw(KEYS.client, topClient);
+    if (topClient && inv.to.company !== topClient) {
+      const draft = !invoices[inv.id] && totals(inv).total > 0;
+      if (draft) toast(`Your unsaved ${invNo(inv)} draft is still open`);
+      else {
+        const latest = Object.values(invoices).filter(forClient).sort(byRecent)[0];
+        if (latest) inv = structuredClone(latest);
+        else inv = blankInvoice(clients.find((c) => c.company === topClient) || { company: topClient });
+        if (latest) setRaw(KEYS.current, inv.id);
+        fillForm(); render();
+      }
+    }
+    renderHistory(); renderTemplates(); renderHistoryView();
+  };
+
+  // ---------- views ----------
+  const showView = (v) => {
+    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.view === v));
+    $(".layout").hidden = v !== "editor";
+    $("#history-view").hidden = v !== "history";
+    document.querySelectorAll("#history, #btn-save, #btn-pdf").forEach((el) => (el.style.display = v === "editor" ? "" : "none"));
+    if (v === "history") renderHistoryView();
+  };
+  document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => showView(t.dataset.view)));
+
+  // ---------- history view ----------
+  const statusOf = (i) => {
+    const t = totals(i);
+    if (t.total > 0 && t.due <= 0.005) return "paid";
+    if (i.dueDate && i.dueDate < today()) return "overdue";
+    return "open";
+  };
+  // Sums kept per currency so USD and EUR are never added together.
+  const sumMoney = (list, pick) => {
+    const by = {};
+    list.forEach((i) => (by[i.currency || "USD"] = (by[i.currency || "USD"] || 0) + pick(i)));
+    const keys = Object.keys(by);
+    if (!keys.length) return money(0, "USD");
+    return keys.map((c) => money(by[c], c)).join(" + ");
+  };
+
+  const renderHistoryView = () => {
+    const list = Object.values(invoices).filter(forClient).sort(byRecent);
+    const outstanding = list.filter((i) => statusOf(i) !== "paid");
+    const overdue = list.filter((i) => statusOf(i) === "overdue");
+    const year = today().slice(0, 4);
+    const thisYear = list.filter((i) => (i.issueDate || "").startsWith(year));
+
+    $("#hv-title").textContent = topClient || "All clients";
+    $("#hv-sub").textContent = list.length
+      ? `${list.length} invoice${list.length === 1 ? "" : "s"} · first issued ${fmtDate(list[list.length - 1].issueDate)} · latest ${fmtDate(list[0].issueDate)}`
+      : "No saved invoices yet. Save or download an invoice and it appears here.";
+
+    $("#hv-tiles").innerHTML = [
+      ["Total invoiced", sumMoney(list, (i) => totals(i).total), "main"],
+      [`Invoiced in ${year}`, sumMoney(thisYear, (i) => totals(i).total), ""],
+      [`Outstanding (${outstanding.length})`, sumMoney(outstanding, (i) => totals(i).due), ""],
+      [`Overdue (${overdue.length})`, sumMoney(overdue, (i) => totals(i).due), ""],
+    ].map(([k, v, cls]) => `<div class="tile ${cls}"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join("");
+
+    // per-client summary (only when looking at all clients)
+    const box = $("#hv-clients");
+    if (topClient) { box.hidden = true; }
+    else {
+      box.hidden = false;
+      const groups = {};
+      list.forEach((i) => (groups[i.to.company || "No client"] ??= []).push(i));
+      const rows = Object.entries(groups).sort((a, b) => {
+        const ta = a[1].reduce((s, i) => s + totals(i).total, 0), tb = b[1].reduce((s, i) => s + totals(i).total, 0);
+        return tb - ta;
+      });
+      box.innerHTML = `<h2>By client</h2><div class="scroll"><table class="hv-table">
+        <thead><tr><th>Client</th><th class="r">Invoices</th><th class="r">Total invoiced</th><th class="r">Outstanding</th><th>Last invoice</th></tr></thead>
+        <tbody>${rows.length ? rows.map(([name, l]) => `
+          <tr class="click" data-client="${esc(name)}">
+            <td class="num">${esc(name)}</td>
+            <td class="r">${l.length}</td>
+            <td class="r">${esc(sumMoney(l, (i) => totals(i).total))}</td>
+            <td class="r">${esc(sumMoney(l.filter((i) => statusOf(i) !== "paid"), (i) => totals(i).due))}</td>
+            <td>${esc(invNo(l[0]))} · ${fmtDate(l[0].issueDate)}</td>
+          </tr>`).join("") : `<tr><td colspan="5" class="empty">No invoices yet</td></tr>`}</tbody>
+        ${rows.length > 1 ? `<tfoot><tr><td>All clients</td><td class="r">${list.length}</td><td class="r">${esc(sumMoney(list, (i) => totals(i).total))}</td><td class="r">${esc(sumMoney(outstanding, (i) => totals(i).due))}</td><td></td></tr></tfoot>` : ""}
+      </table></div>`;
+    }
+
+    $("#hv-invoices").innerHTML = `
+      <thead><tr><th>Invoice</th>${topClient ? "" : "<th>Client</th>"}<th>Issued</th><th>Due</th><th class="r">Total</th><th>Status</th><th></th></tr></thead>
+      <tbody>${list.length ? list.map((i) => {
+        const st = statusOf(i);
+        return `<tr>
+          <td class="num">${esc(invNo(i))}</td>
+          ${topClient ? "" : `<td>${esc(i.to.company)}</td>`}
+          <td>${fmtDate(i.issueDate)}</td>
+          <td>${fmtDate(i.dueDate)}</td>
+          <td class="r">${esc(money(totals(i).total, i.currency))}</td>
+          <td><span class="badge ${st}">${st[0].toUpperCase() + st.slice(1)}</span></td>
+          <td class="acts">
+            <button type="button" class="btn small" data-open="${esc(i.id)}">Open</button>
+            <button type="button" class="btn small" data-paid="${esc(i.id)}">${st === "paid" ? "Mark unpaid" : "Mark paid"}</button>
+          </td>
+        </tr>`;
+      }).join("") : `<tr><td colspan="7" class="empty">No invoices yet</td></tr>`}</tbody>`;
+  };
+
+  $("#history-view").addEventListener("click", (e) => {
+    const row = e.target.closest("tr[data-client]");
+    const open = e.target.dataset.open, paid = e.target.dataset.paid;
+    if (open && invoices[open]) {
+      inv = structuredClone(invoices[open]);
+      setRaw(KEYS.current, inv.id);
+      fillForm(); render(); renderHistory(); showView("editor");
+    } else if (paid && invoices[paid]) {
+      const i = invoices[paid];
+      i.paid = statusOf(i) === "paid" ? 0 : totals(i).total;
+      save(KEYS.invoices, invoices);
+      if (inv.id === paid) { inv.paid = i.paid; fillForm(); render(); }
+      renderHistory(); renderHistoryView();
+      toast(`${invNo(i)} marked ${i.paid ? "paid" : "unpaid"}`);
+    } else if (row) {
+      topClient = row.dataset.client; setRaw(KEYS.client, topClient);
+      $("#top-client").value = topClient;
+      $("#top-client").dispatchEvent(new Event("change"));
+    }
+  });
+
   // ---------- invoices history ----------
   const renderHistory = () => {
-    const list = Object.values(invoices).sort((a, b) => (b.issueDate || "").localeCompare(a.issueDate || "") || b.number - a.number);
+    const list = Object.values(invoices).filter(forClient).sort(byRecent);
     $("#history").innerHTML =
       `<option value="">${list.length ? "Open saved invoice…" : "No saved invoices"}</option>` +
       list.map((i) => `<option value="${i.id}" ${i.id === inv.id ? "selected" : ""}>${esc(invNo(i))} · ${esc(i.to.company)} · ${money(totals(i).total, i.currency)}</option>`).join("");
@@ -398,6 +541,7 @@
   const persist = () => {
     invoices[inv.id] = structuredClone(inv);
     save(KEYS.invoices, invoices);
+    renderHistoryView();
     setRaw(KEYS.current, inv.id);
     renderHistory();
   };
@@ -410,7 +554,7 @@
 
   $("#btn-save").onclick = () => { persist(); toast(`Saved ${invNo(inv)}`); };
   $("#btn-new").onclick = () => {
-    const client = clients.find((c) => c.company === inv.to.company) || clients[0];
+    const client = clients.find((c) => c.company === (topClient || inv.to.company)) || clients[0];
     inv = blankInvoice(client);
     inv.currency = invoices[getRaw(KEYS.current)]?.currency || "USD";
     fillForm(); render(); renderHistory();
@@ -490,7 +634,7 @@
       from = data.from || from;
       if (Array.isArray(data.templates)) { templates = data.templates; save(KEYS.templates, templates); renderTemplates(); }
       save(KEYS.invoices, invoices); save(KEYS.clients, clients); save(KEYS.from, from);
-      renderClients(); renderHistory(); toast("Backup imported");
+      renderClients(); renderTopClient(); renderHistory(); renderHistoryView(); toast("Backup imported");
     } catch { toast("Couldn't read that file"); }
     e.target.value = "";
   };
@@ -592,7 +736,6 @@
 
   // Recover payment details from the most recent saved invoice that has them
   // (older versions didn't remember them between invoices).
-  const byRecent = (a, b) => (b.issueDate || "").localeCompare(a.issueDate || "") || num(b.number) - num(a.number);
   const lastPay = Object.values(invoices).filter((i) => (i.payment || "").trim()).sort(byRecent)[0];
   if (!getRaw(KEYS.payment) && lastPay) setRaw(KEYS.payment, lastPay.payment);
 
@@ -603,5 +746,5 @@
   if (!(inv.payment || "").trim() && getRaw(KEYS.payment)) inv.payment = getRaw(KEYS.payment);
   if (!getRaw(KEYS.clients)) save(KEYS.clients, clients);
 
-  renderClients(); fillForm(); render(); renderHistory(); renderTemplates();
+  renderClients(); renderTopClient(); fillForm(); render(); renderHistory(); renderTemplates(); renderHistoryView();
 })();
