@@ -356,6 +356,19 @@
     toUSA(from);
     save(KEYS.clients, clients); save(KEYS.invoices, invoices); save(KEYS.from, from);
   }
+  // Default payment details from config.local.js (kept out of the public repo).
+  // Applied once per paymentVersion: becomes the remembered default and fills
+  // saved invoices/templates that were empty or still had the old default.
+  const CFG = window.BLYZE_CONFIG || {};
+  if (CFG.payment && !seeded.includes("payment:" + CFG.paymentVersion)) {
+    seeded.push("payment:" + CFG.paymentVersion);
+    const old = (getRaw(KEYS.payment) || "").trim();
+    const stale = (v) => !(v || "").trim() || (old && v.trim() === old);
+    Object.values(invoices).forEach((i) => { if (stale(i.payment)) i.payment = CFG.payment; });
+    templates.forEach((t) => { if (stale(t.payment)) t.payment = CFG.payment; });
+    setRaw(KEYS.payment, CFG.payment);
+    save(KEYS.invoices, invoices);
+  }
   save("blyze.seeded", seeded); save(KEYS.templates, templates);
 
   const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 864e5);
@@ -722,6 +735,15 @@
     const f = inv.from, to = inv.to;
     const hasTax = inv.items.some((it) => num(it.tax) > 0);
     const line = (k, v) => `<div class="line"><span>${k}</span><span>${v}</span></div>`;
+    // "Label: value" lines become a tidy two-column list; anything else prints as-is.
+    const payHtml = (text) => {
+      const lines = String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+      if (!lines.length) return `<div class="v">&nbsp;</div>`;
+      return `<dl class="pay-list">${lines.map((l) => {
+        const m = l.match(/^([^:]{1,28}):\s*(.+)$/);
+        return m ? `<dt>${esc(m[1])}</dt><dd>${esc(m[2])}</dd>` : `<dd class="full">${esc(l)}</dd>`;
+      }).join("")}</dl>`;
+    };
     const contactLines = (p) => [p.contact, ...addressLines(p)].filter(Boolean).map(esc).join("\n");
 
     $("#invoice").innerHTML = `
@@ -784,7 +806,7 @@
           <div>
             <div class="inv-block"><div class="k">Currency</div><div class="v cur"><b>${esc(c)}</b> — ${esc(ccyName[c] || c)}</div></div>
             ${inv.termsText ? `<div class="inv-block"><div class="k">Terms</div><div class="v">${esc(inv.termsText)}</div></div>` : ""}
-            <div class="inv-block pay"><div class="k">Payment details</div><div class="v">${esc(inv.payment) || "&nbsp;"}</div></div>
+            <div class="inv-block pay"><div class="k">Payment details</div>${payHtml(inv.payment)}</div>
           </div>
           <div class="inv-totals">
             ${line("Subtotal", money(t.subtotal, c))}

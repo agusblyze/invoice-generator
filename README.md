@@ -29,3 +29,7 @@ Inside a claude.ai artifact, printing is blocked, so the app builds the PDF itse
 - `styles.css`: the app and invoice design, plus print styles
 - `app.js`: state, totals, storage and rendering
 - `assets/logo.png`: the Blyze Labs logo
+
+## Private settings (bank details)
+
+Default payment details live in `config.local.js`. That file is git-ignored, so account numbers never reach this public repository. Copy `config.example.js` to `config.local.js` and fill it in. When the details change, bump `paymentVersion` so saved invoices and templates update once.
