@@ -107,7 +107,7 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #c7d3f3; border-c
 .inv-logo .web { font-size: 9pt; color: var(--ink-2); }
 .inv-title { text-align: right; }
 .inv-title .label { font-size: 8pt; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--brand); }
-.inv-title .num { font-size: 22pt; font-weight: 600; letter-spacing: -.02em; line-height: 1.15; }
+.inv-title .num { font-size: 15pt; font-weight: 600; letter-spacing: -.02em; line-height: 1.15; }
 
 .inv-meta {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
