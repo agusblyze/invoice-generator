@@ -110,15 +110,13 @@ input:focus, textarea:focus, select:focus { outline: 2px solid #c7d3f3; border-c
 .inv-title .num { font-size: 15pt; font-weight: 600; letter-spacing: -.02em; line-height: 1.15; }
 
 .inv-meta {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
   margin: 10mm 0 8mm; border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
 }
 .inv-meta > div { padding: 10px 14px; border-right: 1px solid var(--line); }
-.inv-meta > div:last-child { border-right: 0; background: var(--brand); color: #fff; }
+.inv-meta > div:last-child { border-right: 0; }
 .inv-meta .k { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-3); font-weight: 600; }
-.inv-meta > div:last-child .k { color: rgba(255,255,255,.75); }
 .inv-meta .v { font-weight: 600; font-size: 10.5pt; margin-top: 2px; }
-.inv-meta > div:last-child .v { font-size: 13pt; }
 
 .inv-parties { display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; margin-bottom: 8mm; }
 .inv-parties .k { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .12em; color: var(--brand); font-weight: 600; margin-bottom: 4px; }
@@ -163,7 +161,6 @@ table.inv-items { width: 100%; border-collapse: collapse; }
   margin-top: auto; padding-top: 6mm; border-top: 1px solid var(--line);
   display: flex; justify-content: space-between; font-size: 8pt; color: var(--ink-3);
 }
-.inv-foot .thanks { color: var(--ink); font-weight: 600; font-size: 10pt; }
 
 /* ---------- print ---------- */
 @page { size: A4; margin: 0; }

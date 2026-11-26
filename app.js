@@ -350,7 +350,6 @@
           <div><div class="k">Issued</div><div class="v">${fmtDate(inv.issueDate)}</div></div>
           <div><div class="k">Due</div><div class="v">${fmtDate(inv.dueDate)}</div></div>
           <div><div class="k">Terms</div><div class="v">${inv.terms === "custom" ? "Custom" : inv.terms === "0" ? "On receipt" : "Net " + inv.terms}</div></div>
-          <div><div class="k">Amount due</div><div class="v">${money(t.due, c)}</div></div>
         </div>
 
         <div class="inv-parties">
@@ -408,8 +407,8 @@
         </div>
 
         <div class="inv-foot">
-          <div><div class="thanks">Thank you for your business.</div>${esc(f.company)}${f.email ? " · " + esc(f.email) : ""}</div>
-          <div style="text-align:right">${esc(invNo(inv))}<br/>Page 1 of 1</div>
+          <div>${esc(f.company)}${f.email ? " · " + esc(f.email) : ""}</div>
+          <div style="text-align:right">${esc(invNo(inv))}</div>
         </div>
       </div>`;
   };
