@@ -17,7 +17,7 @@
     prefix: "APLOS",
     company: "Aplos Software, LLC",
     contact: "Gabriela Henriques",
-    street: "8839 N Cedar Ave B-4 #5007", street2: "", city: "Fresno", state: "CA", zip: "93720", country: "United States of America",
+    street: "8839 N Cedar Ave B-4 #5007", street2: "", city: "Fresno", state: "CA", zip: "93720", country: "USA",
     email: "finance@aplos.com",
     taxId: "",
   };
@@ -27,7 +27,7 @@
     pad: 3,
     company: "OneSkin Inc.",
     contact: "Deepti Janveja",
-    street: "953 Indiana St.", street2: "", city: "San Francisco", state: "CA", zip: "94107", country: "United States of America",
+    street: "953 Indiana St.", street2: "", city: "San Francisco", state: "CA", zip: "94107", country: "USA",
     email: "deepti@oneskin.co",
     taxId: "",
   };
@@ -344,6 +344,17 @@
       save(KEYS.invoices, invoices);
       setRaw(KEYS.current, "inv-os-007");
     }
+  }
+  // One-time switch of clients' country to "USA" (clients, templates, invoices).
+  if (!seeded.includes("country-usa")) {
+    seeded.push("country-usa");
+    const US = /^(united states( of america)?|u\.?s\.?a?\.?)$/i;
+    const toUSA = (p) => { if (p && US.test((p.country || "").trim())) p.country = "USA"; };
+    clients.forEach(toUSA);
+    templates.forEach((t) => toUSA(t.to));
+    Object.values(invoices).forEach((i) => { toUSA(i.to); toUSA(i.from); });
+    toUSA(from);
+    save(KEYS.clients, clients); save(KEYS.invoices, invoices); save(KEYS.from, from);
   }
   save("blyze.seeded", seeded); save(KEYS.templates, templates);
 
